@@ -1,0 +1,39 @@
+  image: "ruby:2.5.0"
+
+  services:
+    - postgres:latest
+
+  variables:
+    POSTGRES_DB: backend
+    APP_NAME: motherearth
+
+  cache:
+    paths:
+      - vendor/ruby
+
+  stages:
+    - build
+    - deploy
+
+  proses_compile:
+    variables:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/$POSTGRES_DB"
+    stage: build
+    script:
+      - apt-get update && apt-get install -y -qq nodejs
+      - gem install bundler --no-ri --no-rdoc
+      - gem install execjs
+      - RAILS_ENV=test bundle install --jobs $(nproc) "${FLAGS[@]}"
+      - bundle exec rake db:migrate
+      - bundle exec rake db:seed
+    except:
+      - master
+
+  proses_deploy_producton:
+    stage: deploy
+    environment: production
+    script:
+      - gem install dpl
+      - dpl --provider=heroku --app=$APP_NAME --api-key=e6730c3b-583f-4d98-91b5-0095f2a524e3
+    only:
+      - master
